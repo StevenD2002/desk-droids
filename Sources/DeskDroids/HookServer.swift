@@ -6,7 +6,7 @@ import Network
 /// - `POST /hook`  receives a hook payload and always answers `200` with an empty body,
 ///   which Claude Code treats as "no decision", so the droid can never block a tool call.
 /// - `GET /state`  returns the current sessions as JSON (handy for debugging).
-/// - `POST /say/<phrase>`  makes the droid say a phrase, e.g. `/say/happy` (for tuning sounds).
+/// - `POST /<verb>/<argument>`  debug commands, e.g. `/say/happy` or `/cat/headLoaf`.
 ///
 /// Listens on loopback only (IPv4 and IPv6, since `localhost` may resolve to either).
 final class HookServer {
@@ -16,7 +16,7 @@ final class HookServer {
     private let onEvent: (HookEvent) -> Void
     private let snapshot: () -> Data
     private let onFailure: (String) -> Void
-    private let onSay: (String) -> Bool
+    private let onCommand: (_ verb: String, _ argument: String) -> Bool
     private let queue = DispatchQueue(label: "desk-droids.hook-server")
     private var listeners: [NWListener] = []
     private var failedListeners = 0
@@ -26,13 +26,13 @@ final class HookServer {
         onEvent: @escaping (HookEvent) -> Void,
         snapshot: @escaping () -> Data,
         onFailure: @escaping (String) -> Void,
-        onSay: @escaping (String) -> Bool
+        onCommand: @escaping (_ verb: String, _ argument: String) -> Bool
     ) {
         self.port = port
         self.onEvent = onEvent
         self.snapshot = snapshot
         self.onFailure = onFailure
-        self.onSay = onSay
+        self.onCommand = onCommand
     }
 
     func start() {
@@ -101,8 +101,9 @@ final class HookServer {
             }
         case ("GET", "/state"):
             respond(on: connection, status: "200 OK", body: snapshot(), contentType: "application/json")
-        case ("POST", let path) where path.hasPrefix("/say/"):
-            let known = onSay(String(path.dropFirst("/say/".count)))
+        case ("POST", let path) where path.split(separator: "/").count == 2:
+            let parts = path.split(separator: "/").map(String.init)
+            let known = onCommand(parts[0], parts[1])
             respond(on: connection, status: known ? "200 OK" : "404 Not Found", body: Data())
         default:
             respond(on: connection, status: "404 Not Found", body: Data())

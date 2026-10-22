@@ -21,9 +21,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onFailure: { [weak self] message in
                 DispatchQueue.main.async { self?.statusBar?.showServerError(message) }
             },
-            onSay: { [weak self] name in
-                guard let phrase = Phrase(rawValue: name) else { return false }
-                DispatchQueue.main.async { self?.statusBar?.say(phrase, force: true) }
+            onCommand: { [weak self] verb, argument in
+                switch verb {
+                case "say":
+                    guard let phrase = Phrase(rawValue: argument) else { return false }
+                    DispatchQueue.main.async { self?.statusBar?.say(phrase, force: true) }
+                case "cat":
+                    guard let scene = CatDirector.Scene(rawValue: argument) else { return false }
+                    DispatchQueue.main.async { self?.statusBar?.summonCat(scene) }
+                default:
+                    return false
+                }
                 return true
             }
         )

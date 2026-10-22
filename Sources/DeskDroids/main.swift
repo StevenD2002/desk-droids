@@ -13,6 +13,26 @@ if CommandLine.arguments.contains("--ascii") {
     exit(0)
 }
 
+// `--ascii-cat <scene> [droid-state]` plays a cat scene tick by tick in the terminal.
+if let flag = CommandLine.arguments.firstIndex(of: "--ascii-cat") {
+    let args = CommandLine.arguments.dropFirst(flag + 1)
+    let scene = args.first.flatMap(CatDirector.Scene.init(rawValue:)) ?? .poke
+    let state = args.dropFirst().first.flatMap(DroidState.init(rawValue:)) ?? .writing
+    let cat = CatDirector(mode: .visits)
+    cat.summon(scene, droid: state)
+    for tick in 0..<60 {
+        var pose = Sprite.pose(for: state, tick: tick)
+        var canvas = Canvas(width: CatDirector.stageWidth, height: Sprite.height)
+        let (frame, adjust) = cat.current(droid: state)
+        adjust(&pose)
+        Sprite.draw(pose, into: &canvas, x: CatDirector.droidX)
+        frame?.draw(into: &canvas)
+        print("── \(scene.rawValue) tick \(tick) ──\n" + canvas.ascii)
+        cat.advance(droid: state)
+    }
+    exit(0)
+}
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

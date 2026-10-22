@@ -23,6 +23,8 @@ enum Sprite {
         /// Nudges the whole droid, for hops and wobbles. Negative `dy` is up.
         var dx = 0
         var dy = 0
+        /// Moves just the hat, e.g. when a cat knocks it off.
+        var hatOffset = (x: 0, y: 0)
     }
 
     // MARK: Grids
@@ -185,6 +187,16 @@ enum Sprite {
         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .white : NSColor(white: 0.78, alpha: 1)
     }
 
+    /// Black fur that stays visible on a dark menu bar.
+    private static let tuxedoBlack = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.2, alpha: 1) : NSColor(white: 0.1, alpha: 1)
+    }
+
+    /// A faint rim around the cat so black fur doesn't vanish into a dark menu bar.
+    private static let tuxedoOutline = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(white: 0.5, alpha: 0.55) : .clear
+    }
+
     private static func palette(eyeColor: NSColor) -> [Character: NSColor] {
         [
             "B": .labelColor,
@@ -199,47 +211,38 @@ enum Sprite {
             "R": .systemRed,
             "M": .systemPink,
             "C": .systemTeal,
+            "G": .systemGreen,
+            "K": tuxedoBlack,
+            "q": tuxedoOutline,
         ]
     }
 
     // MARK: Composition
 
-    /// Composites a pose into a grid of color keys (`.` = empty).
-    static func grid(for pose: Pose) -> [[Character]] {
-        var canvas = Array(repeating: Array(repeating: Character("."), count: width), count: height)
-
-        func stamp(_ rows: [String], x: Int, y: Int) {
-            for (r, row) in rows.enumerated() {
-                for (c, pixel) in row.enumerated() where pixel != "." {
-                    let (px, py) = (x + c + pose.dx, y + r + pose.dy)
-                    if (0..<width).contains(px), (0..<height).contains(py) {
-                        canvas[py][px] = pixel
-                    }
-                }
-            }
-        }
-
+    /// Draws the droid into `canvas` with its left edge at column `x`.
+    static func draw(_ pose: Pose, into canvas: inout Canvas, x: Int) {
+        let (ox, oy) = (x + pose.dx, pose.dy)
         // Standing, the head sits at row 8 (row 0 is headroom for hops). Sitting drops it onto the floor.
         let headTop = pose.legs == .sit ? 12 : 8
-        stamp(legs[pose.legs]!, x: 0, y: headTop + head.count)
-        stamp(head, x: 3, y: headTop)
-        stamp(eyes[pose.eyes]!, x: 5, y: headTop + 2)
+        canvas.stamp(legs[pose.legs]!, x: ox, y: oy + headTop + head.count)
+        canvas.stamp(head, x: ox + 3, y: oy + headTop)
+        canvas.stamp(eyes[pose.eyes]!, x: ox + 5, y: oy + headTop + 2)
         if let frames = hats[pose.hat] {
-            stamp(frames[pose.hatFrame % frames.count], x: 0, y: headTop - 7)
+            canvas.stamp(frames[pose.hatFrame % frames.count],
+                         x: ox + pose.hatOffset.x, y: oy + headTop - 7 + pose.hatOffset.y)
         }
         for prop in props[pose.prop] ?? [] {
-            stamp(prop.grid, x: prop.x - pose.dx, y: prop.y - pose.dy)
+            canvas.stamp(prop.grid, x: x + prop.x, y: prop.y)
         }
-        return canvas
     }
 
-    static func image(for pose: Pose) -> NSImage {
-        let canvas = grid(for: pose)
-        let colors = palette(eyeColor: pose.eyeColor)
+    static func image(of canvas: Canvas, eyeColor: NSColor) -> NSImage {
+        let colors = palette(eyeColor: eyeColor)
+        let pixels = canvas.pixels
         // The drawing handler runs at draw time, so `labelColor` resolves against the
         // menu bar's current appearance (black on light, white on dark).
-        return NSImage(size: NSSize(width: width, height: height), flipped: true) { _ in
-            for (y, row) in canvas.enumerated() {
+        return NSImage(size: NSSize(width: canvas.width, height: canvas.height), flipped: true) { _ in
+            for (y, row) in pixels.enumerated() {
                 for (x, key) in row.enumerated() where key != "." {
                     colors[key]?.setFill()
                     NSRect(x: x, y: y, width: 1, height: 1).fill()
@@ -249,9 +252,54 @@ enum Sprite {
         }
     }
 
-    /// Plain-text rendering, for checking sprites in a terminal (`swift run DeskDroids --ascii`).
+    /// Plain-text rendering of a lone droid, for checking sprites in a terminal.
     static func ascii(for pose: Pose) -> String {
-        grid(for: pose).map { String($0.map { $0 == "." ? " " : $0 }) }.joined(separator: "\n")
+        var canvas = Canvas(width: width, height: height)
+        draw(pose, into: &canvas, x: 0)
+        return canvas.ascii
+    }
+}
+
+/// A grid of palette keys (`.` = empty) that sprites get stamped onto.
+struct Canvas {
+    let width: Int
+    let height: Int
+    private(set) var pixels: [[Character]]
+
+    init(width: Int, height: Int) {
+        self.width = width
+        self.height = height
+        pixels = Array(repeating: Array(repeating: ".", count: width), count: height)
+    }
+
+    /// Copies the non-empty pixels of `rows` onto the canvas, clipping at the edges.
+    mutating func stamp(_ rows: [String], x: Int, y: Int, flipped: Bool = false) {
+        for (r, row) in rows.enumerated() {
+            let pixels = flipped ? Array(row.reversed()) : Array(row)
+            for (c, pixel) in pixels.enumerated() where pixel != "." {
+                let (px, py) = (x + c, y + r)
+                if (0..<width).contains(px), (0..<height).contains(py) {
+                    self.pixels[py][px] = pixel
+                }
+            }
+        }
+    }
+
+    /// Rims every `key` pixel with `outline` on its empty neighbors (up, down, left, right).
+    mutating func outline(_ key: Character, with outline: Character) {
+        let source = pixels
+        for y in 0..<height {
+            for x in 0..<width where source[y][x] == "." {
+                let touches = [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)].contains { nx, ny in
+                    (0..<width).contains(nx) && (0..<height).contains(ny) && source[ny][nx] == key
+                }
+                if touches { pixels[y][x] = outline }
+            }
+        }
+    }
+
+    var ascii: String {
+        pixels.map { String($0.map { $0 == "." ? " " : $0 }) }.joined(separator: "\n")
     }
 }
 

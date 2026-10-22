@@ -3,7 +3,8 @@ import AVFoundation
 /// One synthesized sweep. Frequencies glide exponentially from `from` to `to`, which is what
 /// makes it sound like a droid rather than a microwave.
 struct Tone {
-    enum Wave { case sine, droid, square }
+    /// `purr` is rumbly noise pulsing at the tone's frequency (about 25 Hz for a cat).
+    enum Wave { case sine, droid, square, purr }
 
     var from: Double
     var to: Double
@@ -19,9 +20,19 @@ struct Tone {
 /// The droid's vocabulary. Every call to `tones()` is a little different.
 enum Phrase: String, CaseIterable {
     case boot, acknowledge, chatter, alert, happy, confused, sleepy
+    /// The cat's lines, and the droid's reactions to it.
+    case mrrp, purr, startled, grumpy, garbled
 
     /// Phrases that cut off whatever is playing instead of queueing behind it.
     var interrupts: Bool { self == .alert || self == .happy }
+
+    /// Just for fun: only played in "All beeps" mode.
+    var isFlavor: Bool {
+        switch self {
+        case .chatter, .mrrp, .purr, .startled, .grumpy, .garbled: return true
+        default: return false
+        }
+    }
 
     func tones() -> [Tone] {
         func r(_ range: ClosedRange<Double>) -> Double { .random(in: range) }
@@ -62,6 +73,32 @@ enum Phrase: String, CaseIterable {
             ]
         case .sleepy:
             return [Tone(from: 800, to: 350, duration: 0.7, wave: .sine, volume: 0.6, vibratoRate: 5, vibratoDepth: 0.03)]
+        case .mrrp:
+            let pitch = r(440...540)
+            return [
+                Tone(from: pitch, to: pitch * 1.5, duration: 0.09, volume: 0.7,
+                     vibratoRate: 35, vibratoDepth: 0.06, gapAfter: 0),
+                Tone(from: pitch * 1.5, to: pitch * 1.15, duration: 0.14, volume: 0.7,
+                     vibratoRate: 6, vibratoDepth: 0.03),
+            ]
+        case .purr:
+            return [Tone(from: 25, to: 22, duration: 1.4, wave: .purr, volume: 0.8)]
+        case .startled:
+            return [
+                Tone(from: 2600, to: 1300, duration: 0.07),
+                Tone(from: 1100, to: 2700, duration: 0.13),
+            ]
+        case .grumpy:
+            return [
+                Tone(from: 420, to: 300, duration: 0.22, wave: .square, volume: 0.35, gapAfter: 0.03),
+                Tone(from: 300, to: 280, duration: 0.12, wave: .square, volume: 0.3),
+            ]
+        case .garbled:
+            return (0..<Int.random(in: 8...12)).map { _ in
+                let pitch = r(900...3000)
+                return Tone(from: pitch, to: pitch * r(0.6...1.6), duration: r(0.015...0.03),
+                            volume: 0.45, gapAfter: 0.01)
+            }
         }
     }
 
@@ -127,11 +164,14 @@ final class Voice {
         engine.connect(player, to: engine.mainMixerNode, format: format)
     }
 
-    /// `force` plays chatter even in important-only mode (used by the fashion show). Muted always wins.
+    /// `force` plays flavor even in important-only mode (fashion show, `/say`). Muted always wins.
     func say(_ phrase: Phrase, force: Bool = false) {
         guard mode != .muted else { return }
+        if phrase.isFlavor && !force {
+            guard mode == .all else { return }
+        }
         if phrase == .chatter && !force {
-            guard mode == .all, Date().timeIntervalSince(lastChatter) > Self.chatterCooldown else { return }
+            guard Date().timeIntervalSince(lastChatter) > Self.chatterCooldown else { return }
             lastChatter = Date()
         }
         guard startEngine() else { return }
@@ -176,6 +216,7 @@ final class Voice {
 
         var index = 0
         var phase = 0.0
+        var rumble = 0.0  // low-passed noise for purring
         for tone in tones {
             let count = Int(tone.duration * sampleRate)
             for n in 0..<count where index < Int(capacity) {
@@ -191,6 +232,9 @@ final class Voice {
                 case .sine: wave = sin(phase)
                 case .droid: wave = 0.8 * sin(phase) + 0.2 * sin(2 * phase)
                 case .square: wave = 0.7 * (sin(phase) + sin(3 * phase) / 3 + sin(5 * phase) / 5)
+                case .purr:
+                    rumble += 0.05 * (Double.random(in: -1...1) - rumble)
+                    wave = 4 * rumble * (0.55 + 0.45 * sin(phase))
                 }
                 // Short fades on both ends so tones don't click.
                 let envelope = min(1, t / 0.004) * min(1, (tone.duration - t) / 0.012)

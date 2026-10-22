@@ -23,6 +23,20 @@ Pick **Fashion show** from its menu to see every outfit. `swift run DeskDroids -
 
 Click it to see every active Claude session and what each one is up to.
 
+### The cat
+
+A tuxedo cat shares the stage and bothers the droid. Pick how much cat you want from **Cat** in the menu:
+*No cat*, *Visits now and then* (strolls in every 4–6 minutes), or *Always around* (sits beside the
+droid, flicks its tail, naps when the droid naps). **Summon the cat** starts trouble immediately.
+
+Its bits: a stare-down, poking the droid in the face, swatting its hat off (the hat stays gone until
+the next task), loafing on its head, walking across the keyboard mid-edit (garbled beeps), and
+napping next to a sleeping droid. It always clears off when the droid needs you.
+
+Trigger one directly with `curl -X POST localhost:4747/cat/headLoaf`
+(`stare`, `poke`, `hatThief`, `headLoaf`, `keyboard`, `nap`), or watch one in the terminal with
+`swift run DeskDroids --ascii-cat hatThief writing`.
+
 ### Beeps
 
 The droid talks in synthesized R2-style chirps (no sound files; every phrase varies a little):
@@ -32,7 +46,8 @@ it's done, a confused warble while compacting, and a sleepy whistle when it nods
 
 **Sounds** in its menu switches between *All beeps*, *Important only* (no chatter), and *Muted*.
 To hear a phrase on demand: `curl -X POST localhost:4747/say/happy`
-(`boot`, `acknowledge`, `chatter`, `alert`, `happy`, `confused`, `sleepy`).
+(`boot`, `acknowledge`, `chatter`, `alert`, `happy`, `confused`, `sleepy`, and the cat-related
+`mrrp`, `purr`, `startled`, `grumpy`, `garbled`).
 
 ## Run it
 
@@ -73,6 +88,7 @@ running, the hooks just time out quietly.
 1. ~~Plumbing: menu bar app, hook server, session tracking~~
 2. ~~Pixel-art droid with legs and a hat for every task~~
 3. ~~Droid beeps (synthesized), with mute~~
-4. Smarter reactions: failures, subagent minions, compaction bonk
-5. Proper `.app` bundle + launch at login
-6. Personality system, then more droids (snarky, relentlessly optimistic)
+4. ~~A tuxedo cat that bothers the droid~~
+5. Smarter reactions: failures, subagent minions, compaction bonk
+6. Proper `.app` bundle + launch at login
+7. Personality system, then more droids (snarky, relentlessly optimistic)
