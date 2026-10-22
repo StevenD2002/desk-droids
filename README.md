@@ -3,17 +3,23 @@
 A tiny droid that lives in your macOS menu bar and acts out what Claude Code is doing:
 reading, typing, running commands, waiting on you, done.
 
-```
-[•_•].    thinking
-[◑_◑]     reading files
-[•_•]✎    editing
-[>_<]⚙    running a command
-[°O°]!!   needs your permission  (orange)
-[^_^]✓    done
-[-_-] zZ  asleep
-```
+It's a little pixel-art droid with legs, and it wears a different hat for each kind of work:
 
-(Text faces are placeholders; a pixel-art droid is coming.)
+| Claude is…              | The droid…                                     |
+|-------------------------|------------------------------------------------|
+| thinking                | wears a wizard hat, eyes up                    |
+| reading / searching     | wears a grad cap, eyes darting left and right  |
+| editing files           | wears a chef hat, marching in place            |
+| running a command       | wears a hard hat, squinting, marching          |
+| spawning subagents      | wears a crown                                  |
+| using other tools (MCP) | wears a spinning propeller beanie              |
+| compacting context      | wobbles with dizzy eyes                        |
+| waiting on permission   | hops with wide orange eyes and a "!"           |
+| done                    | wears a party hat, with sparkles               |
+| idle for 5 minutes      | sits down in a nightcap and snoozes            |
+
+The body follows the menu bar's text color (white in dark mode, black in light mode); hats are in color.
+Pick **Fashion show** from its menu to see every outfit. `swift run DeskDroids --ascii` prints them all in the terminal.
 
 Click it to see every active Claude session and what each one is up to.
 
@@ -54,7 +60,7 @@ running, the hooks just time out quietly.
 ## Roadmap
 
 1. ~~Plumbing: menu bar app, hook server, session tracking~~
-2. Pixel-art droid sprite with per-state animations
+2. ~~Pixel-art droid with legs and a hat for every task~~
 3. Droid beeps (synthesized), with mute
 4. Smarter reactions: failures, subagent minions, compaction bonk
 5. Proper `.app` bundle + launch at login
