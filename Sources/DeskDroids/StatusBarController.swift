@@ -4,8 +4,11 @@ import AppKit
 final class StatusBarController: NSObject, NSMenuDelegate {
     private static let frameInterval: TimeInterval = 0.4
     private static let fashionShowStateDuration: TimeInterval = 2.4
+    private static let alertReminderInterval: TimeInterval = 45
 
     private let store: SessionStore
+    private let voice = Voice()
+    private var lastAlert = Date.distantPast
     private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private var tick = 0
     private var shownState: DroidState?
@@ -23,9 +26,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         item.button?.imagePosition = .imageOnly
 
         store.onChange = { [weak self] in self?.render() }
+        store.onStateSet = { [weak self] from, to in
+            guard let phrase = Phrase.forTransition(from: from, to: to) else { return }
+            self?.say(phrase)
+        }
         Timer.scheduledTimer(withTimeInterval: Self.frameInterval, repeats: true) { [weak self] _ in
             self?.tick += 1
             self?.render()
+            self?.remindIfIgnored()
         }
         render()
     }
@@ -40,6 +48,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private func render() {
         let state = displayedState
         if state != shownState {
+            if !fashionShow.isEmpty {
+                voice.say(Phrase.signature(for: state), force: true)
+            } else if state == .sleeping, shownState != nil {
+                say(.sleepy)
+            }
             shownState = state
             tick = 0
         }
@@ -48,11 +61,30 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         item.button?.toolTip = "desk-droids · \(state.label)"
     }
 
+    func say(_ phrase: Phrase, force: Bool = false) {
+        if phrase == .alert { lastAlert = Date() }
+        voice.say(phrase, force: force)
+    }
+
+    /// Nags again if a permission prompt has been sitting there a while.
+    private func remindIfIgnored() {
+        if store.state == .needsYou, Date().timeIntervalSince(lastAlert) > Self.alertReminderInterval {
+            say(.alert)
+        }
+    }
+
+    @objc private func setSoundMode(_ sender: NSMenuItem) {
+        guard let mode = sender.representedObject as? Voice.Mode else { return }
+        voice.mode = mode
+        if mode != .muted { voice.say(.acknowledge) }
+    }
+
     /// Cycles through every state so you can see all the outfits.
     @objc private func startFashionShow() {
         fashionShow = [.idle, .thinking, .reading, .writing, .running, .delegating,
                        .tinkering, .compacting, .needsYou, .done, .sleeping]
         fashionShowTimer?.invalidate()
+        shownState = nil  // so the first outfit gets its sound even if it matches the real state
         fashionShowTimer = Timer.scheduledTimer(withTimeInterval: Self.fashionShowStateDuration, repeats: true) { [weak self] timer in
             guard let self else { return timer.invalidate() }
             self.fashionShow.removeFirst()
@@ -86,6 +118,17 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
+        let sounds = NSMenu()
+        for mode in Voice.Mode.allCases {
+            let option = NSMenuItem(title: mode.label, action: #selector(setSoundMode(_:)), keyEquivalent: "")
+            option.target = self
+            option.representedObject = mode
+            option.state = voice.mode == mode ? .on : .off
+            sounds.addItem(option)
+        }
+        let soundsItem = NSMenuItem(title: "Sounds", action: nil, keyEquivalent: "")
+        soundsItem.submenu = sounds
+        menu.addItem(soundsItem)
         let show = NSMenuItem(title: "Fashion show", action: #selector(startFashionShow), keyEquivalent: "")
         show.target = self
         menu.addItem(show)

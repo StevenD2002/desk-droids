@@ -23,6 +23,17 @@ Pick **Fashion show** from its menu to see every outfit. `swift run DeskDroids -
 
 Click it to see every active Claude session and what each one is up to.
 
+### Beeps
+
+The droid talks in synthesized R2-style chirps (no sound files; every phrase varies a little):
+a boot-up sweep when a session starts, an "on it!" chirp when you send a prompt, soft chatter on tool
+calls, an urgent "hey?!" when it needs permission (repeated every 45s if ignored), a happy trill when
+it's done, a confused warble while compacting, and a sleepy whistle when it nods off.
+
+**Sounds** in its menu switches between *All beeps*, *Important only* (no chatter), and *Muted*.
+To hear a phrase on demand: `curl -X POST localhost:4747/say/happy`
+(`boot`, `acknowledge`, `chatter`, `alert`, `happy`, `confused`, `sleepy`).
+
 ## Run it
 
 ```sh
@@ -61,7 +72,7 @@ running, the hooks just time out quietly.
 
 1. ~~Plumbing: menu bar app, hook server, session tracking~~
 2. ~~Pixel-art droid with legs and a hat for every task~~
-3. Droid beeps (synthesized), with mute
+3. ~~Droid beeps (synthesized), with mute~~
 4. Smarter reactions: failures, subagent minions, compaction bonk
 5. Proper `.app` bundle + launch at login
 6. Personality system, then more droids (snarky, relentlessly optimistic)

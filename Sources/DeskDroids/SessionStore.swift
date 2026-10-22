@@ -39,6 +39,8 @@ final class Session {
     var state: DroidState = .idle
     var detail = ""
     var updated = Date()
+    /// True until the session's first state change, so the droid can greet it.
+    var isNew = true
 
     init(id: String, cwd: String) {
         self.id = id
@@ -60,6 +62,9 @@ final class SessionStore {
 
     private(set) var sessions: [String: Session] = [:]
     var onChange: (() -> Void)?
+    /// Fires on every state set, even when the state doesn't change (each tool call, say).
+    /// `from` is nil the first time a session is seen.
+    var onStateSet: ((_ from: DroidState?, _ to: DroidState) -> Void)?
     private var ticker: Timer?
 
     init() {
@@ -118,9 +123,12 @@ final class SessionStore {
     }
 
     private func set(_ session: Session, _ state: DroidState, _ detail: String) {
+        let from = session.isNew ? nil : session.state
+        session.isNew = false
         session.state = state
         session.detail = detail
         session.updated = Date()
+        onStateSet?(from, state)
     }
 
     /// Time-based transitions: done → idle → sleeping, and forgetting sessions that vanished
