@@ -52,8 +52,18 @@ To hear a phrase on demand: `curl -X POST localhost:4747/say/happy`
 ## Run it
 
 ```sh
-swift run
+make app
+open ~/Applications/DeskDroids.app
 ```
+
+`make app` does a release build, wraps it in `DeskDroids.app` (menu bar only, no Dock icon), ad-hoc
+signs it, and installs it in `~/Applications`. Turn on **Open at login** in the droid's menu so it
+survives a reboot. Your Sounds and Cat settings carry over from the dev build the first time it runs.
+
+Only one droid can listen on port 4747, so quit the dev build before opening the app (and the other
+way around). A second copy shows a red, dizzy droid.
+
+For hacking on it, `swift run` starts the dev build and `swift test` runs the tests.
 
 Requires macOS 13+ and the Swift toolchain (Xcode or Command Line Tools). No dependencies.
 
@@ -92,5 +102,5 @@ Details and open questions: [ROADMAP.md](ROADMAP.md).
 3. ~~Droid beeps (synthesized), with mute~~
 4. ~~A tuxedo cat that bothers the droid~~
 5. Smarter reactions: failures, subagent minions, compaction bonk
-6. Proper `.app` bundle + launch at login
+6. ~~Proper `.app` bundle + launch at login~~
 7. Personality system, then more droids (snarky, relentlessly optimistic)

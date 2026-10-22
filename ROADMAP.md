@@ -1,7 +1,7 @@
 # Roadmap
 
-Milestones 1–4 are done (see README). Each milestone ends with a commit and push once Steven has seen
-it working in his menu bar.
+Milestones 1–4 and 6 are done (see README). Each milestone ends with a commit and push once Steven
+has seen it working in his menu bar.
 
 ## 5. Smarter reactions
 
@@ -20,20 +20,6 @@ More personality from the events Claude Code already sends.
   frame), then a short "?" afterward, as if it forgot something.
 - Ideas for this milestone: a celebration for a long task finishing (more confetti than usual for
   sessions that ran more than about 5 minutes), and the cat reacting to the party hat.
-
-## 6. Real `.app` + launch at login
-
-Right now the droid only runs because a Claude session started `.build/debug/DeskDroids` in the
-background. It dies on reboot.
-
-- A `make app` (or script) that does a release build and wraps it into `DeskDroids.app` with an
-  `Info.plist` (`LSUIElement = true`, so no Dock icon, and a bundle id like `com.stevendew.desk-droids`),
-  ad-hoc codesigns it, and copies it to `~/Applications`.
-- **Open at login** toggle in the menu via `SMAppService.mainApp` (macOS 13+).
-- Gotcha: UserDefaults moves from the `DeskDroids` domain to the bundle id, which resets the sound
-  and cat settings. Migrate them, or accept the reset.
-- Gotcha: a second copy can't bind port 4747 and shows the broken (red dizzy) droid. That's fine, but
-  the README should say to quit the dev build before launching the app.
 
 ## 7. Personalities and more droids
 

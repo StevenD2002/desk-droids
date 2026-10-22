@@ -146,7 +146,7 @@ final class Voice {
     private static let masterVolume = 0.3
     private static let chatterCooldown: TimeInterval = 2
     private static let idleShutdown: TimeInterval = 10
-    private static let modeKey = "soundMode"
+    static let modeKey = "soundMode"
 
     var mode: Mode {
         get { Mode(rawValue: UserDefaults.standard.string(forKey: Self.modeKey) ?? "") ?? .all }

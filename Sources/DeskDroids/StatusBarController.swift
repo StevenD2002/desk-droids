@@ -7,7 +7,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     private static let alertReminderInterval: TimeInterval = 45
 
     private let store: SessionStore
-    private static let catModeKey = "catMode"
+    static let catModeKey = "catMode"
 
     private let voice = Voice()
     private let cat = CatDirector(
@@ -108,6 +108,8 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         if mode != .muted { voice.say(.acknowledge) }
     }
 
+    @objc private func toggleOpenAtLogin() { LoginItem.toggle() }
+
     /// Cycles through every state so you can see all the outfits.
     @objc private func startFashionShow() {
         fashionShow = [.idle, .thinking, .reading, .writing, .running, .delegating,
@@ -178,6 +180,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let show = NSMenuItem(title: "Fashion show", action: #selector(startFashionShow), keyEquivalent: "")
         show.target = self
         menu.addItem(show)
+        menu.addItem(.separator())
+        let login = NSMenuItem(title: LoginItem.isAvailable ? "Open at login" : "Open at login (app only)",
+                               action: LoginItem.isAvailable ? #selector(toggleOpenAtLogin) : nil, keyEquivalent: "")
+        login.target = self
+        login.state = LoginItem.menuState
+        menu.addItem(login)
         let quit = NSMenuItem(title: "Quit desk-droids", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
     }

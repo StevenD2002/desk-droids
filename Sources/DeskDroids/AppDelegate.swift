@@ -8,6 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: StatusBarController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        SettingsMigration.runIfNeeded()  // before StatusBarController reads the settings
         statusBar = StatusBarController(store: store)
 
         let server = HookServer(

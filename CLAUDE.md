@@ -10,8 +10,12 @@ no dependencies, macOS 13+. What's next is in `ROADMAP.md`.
   never blocks a tool call.
 - `HookEvent` → `SessionStore`: per-session `DroidState`. The most urgent session wins
   (needs-you > busy > done > idle > sleeping). Time decays done → idle → sleeping.
-- `StatusBarController`: animation tick every 0.4s, the menu (Sounds, Cat, Fashion show), and sound
-  triggers.
+- `StatusBarController`: animation tick every 0.4s, the menu (Sounds, Cat, Fashion show, Open at
+  login), and sound triggers.
+- `LoginItem`: the "Open at login" toggle (`SMAppService.mainApp`). It's only available in the `.app`.
+- `SettingsMigration`: the dev build stores settings in the `DeskDroids` defaults domain and the
+  `.app` stores them under `com.stevendew.desk-droids`. On launch, the app copies over any it's missing.
+- `scripts/make-app.sh` (`make app`): builds and signs the bundle and installs it in `~/Applications`.
 - `Sprite`: the droid as ASCII pixel grids (hat / head / eyes / legs / props), composited on a
   `Canvas`, one character per point. `Sprite.pose(for:tick:)` defines each state's look.
 - `Cat`: `CatSprite` grids plus `CatDirector`, which plays scenes as timelines of `Beat`s and can
@@ -21,7 +25,11 @@ no dependencies, macOS 13+. What's next is in `ROADMAP.md`.
 
 ## Checking changes (you can't see the menu bar)
 
-- `swift build`, then restart: `pkill -f .build/debug/DeskDroids; nohup .build/debug/DeskDroids >/dev/null 2>&1 &`
+- Steven normally runs the installed `~/Applications/DeskDroids.app`. To try a change, quit it and run
+  the dev build instead: `pkill -f DeskDroids.app/Contents/MacOS; swift build && nohup .build/debug/DeskDroids >/dev/null 2>&1 &`.
+  Only one copy can hold port 4747. When you're done, `make app` reinstalls the app; then `pkill -f
+  .build/debug/DeskDroids; open ~/Applications/DeskDroids.app`.
+- `swift test` runs the tests (only settings migration so far).
 - `.build/debug/DeskDroids --ascii` prints every droid pose. `--ascii-cat <scene> [state]` plays a cat
   scene tick by tick. Use these to check sprite and choreography changes before asking Steven to look.
 - `curl localhost:4747/state` shows the sessions. `curl -X POST localhost:4747/say/<phrase>` plays a
