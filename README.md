@@ -85,6 +85,8 @@ running, the hooks just time out quietly.
 
 ## Roadmap
 
+Details and open questions: [ROADMAP.md](ROADMAP.md).
+
 1. ~~Plumbing: menu bar app, hook server, session tracking~~
 2. ~~Pixel-art droid with legs and a hat for every task~~
 3. ~~Droid beeps (synthesized), with mute~~
