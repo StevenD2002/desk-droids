@@ -2,13 +2,16 @@ import AppKit
 
 // `--ascii` prints every pose to the terminal instead of launching, for eyeballing sprites.
 if CommandLine.arguments.contains("--ascii") {
-    let states: [DroidState] = [.idle, .thinking, .reading, .writing, .running, .delegating,
-                                .tinkering, .compacting, .needsYou, .done, .sleeping]
-    for state in states {
-        for tick in 0..<2 {
+    for state in DroidState.lineup {
+        // Compacting is a longer routine; show all of it.
+        for tick in 0..<(state == .compacting ? 4 : 2) {
             print("── \(state.label) (frame \(tick)) ──")
             print(Sprite.ascii(for: Sprite.pose(for: state, tick: tick)))
         }
+    }
+    for tick in 0..<4 {
+        print("── \(Sprite.maxDrones) subagent drones (frame \(tick)) ──")
+        print(Sprite.ascii(for: Sprite.pose(for: .delegating, tick: tick, drones: Sprite.maxDrones)))
     }
     exit(0)
 }

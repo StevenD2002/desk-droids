@@ -5,18 +5,22 @@ reading, typing, running commands, waiting on you, done.
 
 It's a little pixel-art droid with legs, and it wears a different hat for each kind of work:
 
-| Claude is…              | The droid…                                     |
-|-------------------------|------------------------------------------------|
-| thinking                | wears a wizard hat, eyes up                    |
-| reading / searching     | wears a grad cap, eyes darting left and right  |
-| editing files           | wears a chef hat, marching in place            |
-| running a command       | wears a hard hat, squinting, marching          |
-| spawning subagents      | wears a crown                                  |
-| using other tools (MCP) | wears a spinning propeller beanie              |
-| compacting context      | wobbles with dizzy eyes                        |
-| waiting on permission   | hops with wide orange eyes and a "!"           |
-| done                    | wears a party hat, with sparkles               |
-| idle for 5 minutes      | sits down in a nightcap and snoozes            |
+| Claude is…              | The droid…                                         |
+|-------------------------|----------------------------------------------------|
+| thinking                | wears a wizard hat, eyes up                        |
+| reading / searching     | wears a grad cap, eyes darting left and right      |
+| editing files           | wears a chef hat, marching in place                |
+| running a command       | wears a hard hat, squinting, marching              |
+| spawning subagents      | wears a crown                                      |
+| running subagents       | gets a tiny drone buzzing around its hat (up to 3) |
+| using other tools (MCP) | wears a spinning propeller beanie                  |
+| a command failing       | facepalms under a little rain cloud                |
+| compacting context      | gets bonked on the head and sees stars             |
+| just compacted          | looks around with a "?" (what was it doing?)       |
+| waiting on permission   | hops with wide orange eyes and a "!"               |
+| done                    | wears a party hat, with sparkles                   |
+| done after 5+ minutes   | throws a confetti party                            |
+| idle for 5 minutes      | sits down in a nightcap and snoozes                |
 
 The body follows the menu bar's text color (white in dark mode, black in light mode); hats are in color.
 Pick **Fashion show** from its menu to see every outfit. `swift run DeskDroids --ascii` prints them all in the terminal.
@@ -42,12 +46,13 @@ Trigger one directly with `curl -X POST localhost:4747/cat/headLoaf`
 The droid talks in synthesized R2-style chirps (no sound files; every phrase varies a little):
 a boot-up sweep when a session starts, an "on it!" chirp when you send a prompt, soft chatter on tool
 calls, an urgent "hey?!" when it needs permission (repeated every 45s if ignored), a happy trill when
-it's done, a confused warble while compacting, and a sleepy whistle when it nods off.
+it's done (a full fanfare after a long task), a sad "wah wah wahhh" when something fails, a bonk and a
+confused warble when compacting, a puzzled "huh?" afterward, and a sleepy whistle when it nods off.
 
 **Sounds** in its menu switches between *All beeps*, *Important only* (no chatter), and *Muted*.
 To hear a phrase on demand: `curl -X POST localhost:4747/say/happy`
-(`boot`, `acknowledge`, `chatter`, `alert`, `happy`, `confused`, `sleepy`, and the cat-related
-`mrrp`, `purr`, `startled`, `grumpy`, `garbled`).
+(`boot`, `acknowledge`, `chatter`, `alert`, `happy`, `fanfare`, `sad`, `bonk`, `confused`, `huh`, `sleepy`,
+and the cat-related `mrrp`, `purr`, `startled`, `grumpy`, `garbled`).
 
 ## Run it
 
@@ -75,15 +80,18 @@ in `~/.claude/settings.json`:
 ```json
 {
   "hooks": {
-    "SessionStart":     [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
-    "SessionEnd":       [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
-    "UserPromptSubmit": [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
-    "PreToolUse":       [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
-    "PostToolUse":      [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
-    "Notification":     [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
-    "Stop":             [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
-    "SubagentStop":     [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
-    "PreCompact":       [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }]
+    "SessionStart":       [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
+    "SessionEnd":         [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
+    "UserPromptSubmit":   [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
+    "PreToolUse":         [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
+    "PostToolUse":        [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
+    "PostToolUseFailure": [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
+    "Notification":       [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
+    "Stop":               [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
+    "SubagentStart":      [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
+    "SubagentStop":       [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
+    "PreCompact":         [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }],
+    "PostCompact":        [{ "hooks": [{ "type": "http", "url": "http://localhost:4747/hook", "timeout": 1 }] }]
   }
 }
 ```
@@ -91,7 +99,8 @@ in `~/.claude/settings.json`:
 The droid always answers with an empty `200`, so it can never block or alter a tool call. When it isn't
 running, the hooks just time out quietly.
 
-`curl localhost:4747/state` shows what the droid currently thinks is going on.
+`curl localhost:4747/state` shows what the droid currently thinks is going on, and
+`curl localhost:4747/events` shows the last 20 raw hook payloads (truncated).
 
 ## Roadmap
 
@@ -101,6 +110,6 @@ Details and open questions: [ROADMAP.md](ROADMAP.md).
 2. ~~Pixel-art droid with legs and a hat for every task~~
 3. ~~Droid beeps (synthesized), with mute~~
 4. ~~A tuxedo cat that bothers the droid~~
-5. Smarter reactions: failures, subagent minions, compaction bonk
+5. ~~Smarter reactions: failures, subagent drones, compaction bonk, long-task party~~
 6. ~~Proper `.app` bundle + launch at login~~
 7. Personality system, then more droids (snarky, relentlessly optimistic)

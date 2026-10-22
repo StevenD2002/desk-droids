@@ -6,11 +6,14 @@ import Network
 /// - `POST /hook`  receives a hook payload and always answers `200` with an empty body,
 ///   which Claude Code treats as "no decision", so the droid can never block a tool call.
 /// - `GET /state`  returns the current sessions as JSON (handy for debugging).
+/// - `GET /events`  the last few raw hook payloads (truncated), for seeing what Claude Code sends.
 /// - `POST /<verb>/<argument>`  debug commands, e.g. `/say/happy` or `/cat/headLoaf`.
 ///
 /// Listens on loopback only (IPv4 and IPv6, since `localhost` may resolve to either).
 final class HookServer {
     private static let maxRequestBytes = 32 * 1024 * 1024
+    private static let recentLimit = 20
+    private static let recentPayloadBytes = 2000
 
     private let port: UInt16
     private let onEvent: (HookEvent) -> Void
@@ -20,6 +23,8 @@ final class HookServer {
     private let queue = DispatchQueue(label: "desk-droids.hook-server")
     private var listeners: [NWListener] = []
     private var failedListeners = 0
+    /// Newest last. Only touched on `queue`.
+    private var recent: [String] = []
 
     init(
         port: UInt16,
@@ -96,9 +101,13 @@ final class HookServer {
         switch (request.method, request.path) {
         case ("POST", "/hook"):
             respond(on: connection, status: "200 OK", body: Data())
+            recent.append(String(decoding: request.body.prefix(Self.recentPayloadBytes), as: UTF8.self))
+            if recent.count > Self.recentLimit { recent.removeFirst() }
             if let event = HookEvent(json: request.body) {
                 onEvent(event)
             }
+        case ("GET", "/events"):
+            respond(on: connection, status: "200 OK", body: Data(recent.joined(separator: "\n\n").utf8))
         case ("GET", "/state"):
             respond(on: connection, status: "200 OK", body: snapshot(), contentType: "application/json")
         case ("POST", let path) where path.split(separator: "/").count == 2:

@@ -19,12 +19,12 @@ struct Tone {
 
 /// The droid's vocabulary. Every call to `tones()` is a little different.
 enum Phrase: String, CaseIterable {
-    case boot, acknowledge, chatter, alert, happy, confused, sleepy
+    case boot, acknowledge, chatter, alert, happy, confused, sleepy, sad, bonk, huh, fanfare
     /// The cat's lines, and the droid's reactions to it.
     case mrrp, purr, startled, grumpy, garbled
 
     /// Phrases that cut off whatever is playing instead of queueing behind it.
-    var interrupts: Bool { self == .alert || self == .happy }
+    var interrupts: Bool { self == .alert || self == .happy || self == .fanfare }
 
     /// Just for fun: only played in "All beeps" mode.
     var isFlavor: Bool {
@@ -73,6 +73,27 @@ enum Phrase: String, CaseIterable {
             ]
         case .sleepy:
             return [Tone(from: 800, to: 350, duration: 0.7, wave: .sine, volume: 0.6, vibratoRate: 5, vibratoDepth: 0.03)]
+        case .sad:
+            // Wah, wah, wah, wahhh.
+            let steps = [784.0, 740, 698].map { Tone(from: $0, to: $0 * 0.97, duration: 0.17, gapAfter: 0.06) }
+            return steps + [Tone(from: 659, to: 520, duration: 0.6, volume: 0.9, vibratoRate: 6, vibratoDepth: 0.03)]
+        case .bonk:
+            return [Tone(from: 240, to: 70, duration: 0.09, wave: .square, volume: 0.8, gapAfter: 0.12)]
+                + Phrase.confused.tones()
+        case .huh:
+            return [
+                Tone(from: 900, to: 720, duration: 0.07, gapAfter: 0),
+                Tone(from: 720, to: 1700, duration: 0.2, vibratoRate: 10, vibratoDepth: 0.03),
+            ]
+        case .fanfare:
+            let run = [523.3, 659.3, 784.0, 1046.5, 1318.5, 1568.0].map {
+                Tone(from: $0, to: $0 * 1.02, duration: 0.07, gapAfter: 0.01)
+            }
+            let top = 2093.0
+            return run + [
+                Tone(from: top, to: top, duration: 0.1, gapAfter: 0.04),
+                Tone(from: top, to: top * 1.06, duration: 0.45, vibratoRate: 26, vibratoDepth: 0.07),
+            ]
         case .mrrp:
             let pitch = r(440...540)
             return [
@@ -105,14 +126,10 @@ enum Phrase: String, CaseIterable {
     /// What the droid says when a session moves between states. `from` is nil for a brand-new session.
     static func forTransition(from: DroidState?, to: DroidState) -> Phrase? {
         guard let from else { return .boot }
-        switch to {
-        case .needsYou where from != .needsYou: return .alert
-        case .done where from != .done: return .happy
-        case .compacting where from != .compacting: return .confused
-        case _ where to.isBusy && !from.isBusy: return .acknowledge
-        case _ where to.isBusy: return .chatter
-        default: return nil
-        }
+        let announced: Set<DroidState> = [.needsYou, .done, .triumph, .compacting, .oops, .forgetful]
+        if to != from, announced.contains(to) { return signature(for: to) }
+        guard to.isBusy else { return nil }
+        return from.isBusy ? .chatter : .acknowledge
     }
 
     /// Each state's signature sound, for the fashion show.
@@ -121,9 +138,12 @@ enum Phrase: String, CaseIterable {
         case .idle: return .boot
         case .thinking: return .acknowledge
         case .reading, .writing, .running, .delegating, .tinkering: return .chatter
-        case .compacting: return .confused
+        case .compacting: return .bonk
+        case .forgetful: return .huh
+        case .oops: return .sad
         case .needsYou: return .alert
         case .done: return .happy
+        case .triumph: return .fanfare
         case .sleeping: return .sleepy
         }
     }

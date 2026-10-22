@@ -64,7 +64,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             shownState = state
             tick = 0
         }
-        var pose = serverError == nil ? Sprite.pose(for: state, tick: tick) : Sprite.broken
+        // The fashion show gives the crown its entourage.
+        let showDrones = state == .delegating ? Sprite.maxDrones : 0
+        let drones = fashionShow.isEmpty ? store.droneCount : showDrones
+        var pose = serverError == nil ? Sprite.pose(for: state, tick: tick, drones: drones) : Sprite.broken
         let width = cat.isEnabled ? CatDirector.stageWidth : Sprite.width
         var canvas = Canvas(width: width, height: Sprite.height)
         let (catFrame, adjustDroid) = cat.current(droid: state)
@@ -112,8 +115,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
     /// Cycles through every state so you can see all the outfits.
     @objc private func startFashionShow() {
-        fashionShow = [.idle, .thinking, .reading, .writing, .running, .delegating,
-                       .tinkering, .compacting, .needsYou, .done, .sleeping]
+        fashionShow = DroidState.lineup
         fashionShowTimer?.invalidate()
         shownState = nil  // so the first outfit gets its sound even if it matches the real state
         fashionShowTimer = Timer.scheduledTimer(withTimeInterval: Self.fashionShowStateDuration, repeats: true) { [weak self] timer in

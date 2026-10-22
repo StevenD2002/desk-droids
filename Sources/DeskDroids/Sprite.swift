@@ -9,9 +9,12 @@ enum Sprite {
     static let height = 21
 
     enum Hat { case none, antenna, nightcap, wizard, gradCap, chef, hardHat, crown, propeller, party }
-    enum Eyes { case normal, blink, happy, wide, left, right, squint, dizzy, up, down }
+    enum Eyes { case normal, blink, happy, wide, left, right, squint, dizzy, up, down, shut }
     enum Legs { case stand, stepLeft, stepRight, sit }
-    enum Prop { case none, zzzLow, zzzHigh, alert, sparklesA, sparklesB }
+    enum Prop {
+        case none, zzzLow, zzzHigh, alert, sparklesA, sparklesB
+        case bonk, starsA, starsB, question, facepalmA, facepalmB
+    }
 
     struct Pose {
         var hat: Hat
@@ -25,6 +28,11 @@ enum Sprite {
         var dy = 0
         /// Moves just the hat, e.g. when a cat knocks it off.
         var hatOffset = (x: 0, y: 0)
+        /// Subagent drones buzzing around the hat (at most `maxDrones`), and their animation frame.
+        var drones = 0
+        var droneFrame = 0
+        /// Confetti falling down the sides, this many rows along. Nil for no confetti.
+        var confettiFall: Int?
     }
 
     // MARK: Grids
@@ -52,6 +60,7 @@ enum Sprite {
         .dizzy:  ["E.E..E.E", ".E....E.", "E.E..E.E", "........"],
         .up:     [".EE..EE.", ".EE..EE.", "........", "........"],
         .down:   ["........", "........", ".EE..EE.", ".EE..EE."],
+        .shut:   ["........", "EE....EE", "..E..E..", "........"],
     ]
 
     private static let legs: [Legs: [String]] = [
@@ -181,7 +190,38 @@ enum Sprite {
         .alert: [(16, 8, ["E", "E", "E", ".", "E"])],
         .sparklesA: [(0, 8, [".S.", "SSS", ".S."]), (15, 13, [".S.", "SSS", ".S."])],
         .sparklesB: [(0, 13, [".S.", "SSS", ".S."]), (15, 8, [".S.", "SSS", ".S."])],
+        .bonk: [(6, 0, ["Y.Y.Y", ".YYY.", "Y.Y.Y"])],
+        .starsA: [(1, 3, ["S.S", ".S.", "S.S"]), (14, 6, ["S"]), (8, 0, ["S"])],
+        .starsB: [(14, 2, ["S.S", ".S.", "S.S"]), (2, 6, ["S"]), (10, 0, ["S"])],
+        .question: [(14, 1, ["EEE", "..E", ".E.", "...", ".E."])],
+        .facepalmA: [cloud, (5, 6, ["U...U..", "..U...U"]), hand],
+        .facepalmB: [cloud, (5, 6, [".U...U.", "U...U.."]), hand],
     ]
+
+    private static let cloud = (x: 5, y: 2, grid: ["..ggg..", ".ggggg.", "ggggggg", ".ggggg."])
+    /// A gray arm coming up from below the head to cover its left eye.
+    private static let hand = (x: 1, y: 10, grid: [
+        "....gggg",
+        "...ggggg",
+        "...gggg.",
+        "..gg....",
+        ".gg.....",
+        "gg......",
+        "g.......",
+    ])
+
+    /// Colored flecks that fall down the sides (wrapping around), one pixel per point.
+    private static let confetti: [(x: Int, y: Int, color: Character)] = [
+        (0, 1, "M"), (16, 0, "C"), (2, 5, "Y"), (15, 4, "G"), (1, 9, "R"), (17, 10, "M"),
+        (0, 15, "C"), (16, 16, "Y"), (12, 1, "G"), (4, 3, "R"), (2, 18, "M"), (15, 19, "R"),
+    ]
+
+    static let maxDrones = 3
+
+    /// One subagent drone: rotors on top (two frames), a body with an eye.
+    private static let drone = [["g.g", "BEB"], [".g.", "BEB"]]
+    /// Where each drone hovers: left of the hat, right of the hat, above it. One per `maxDrones`.
+    private static let droneSpots = [(x: 0, y: 3), (x: 15, y: 3), (x: 7, y: 0)]
 
     private static let whiteish = NSColor(name: nil) { appearance in
         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .white : NSColor(white: 0.78, alpha: 1)
@@ -233,6 +273,17 @@ enum Sprite {
         }
         for prop in props[pose.prop] ?? [] {
             canvas.stamp(prop.grid, x: x + prop.x, y: prop.y)
+        }
+        if let fall = pose.confettiFall {
+            for fleck in confetti {
+                canvas.stamp([String(fleck.color)], x: x + fleck.x, y: (fleck.y + fall) % height)
+            }
+        }
+        // Drones bob and drift a pixel, out of step with each other, so they look like they're buzzing.
+        for (i, spot) in droneSpots.prefix(pose.drones).enumerated() {
+            let frame = pose.droneFrame + i
+            let drift = (frame / 3) % 2 * (spot.x > width / 2 ? -1 : 1)
+            canvas.stamp(drone[frame % 2], x: x + spot.x + drift, y: spot.y + (frame / 2) % 2)
         }
     }
 
@@ -305,7 +356,14 @@ struct Canvas {
 
 extension Sprite {
     /// How the droid acts out each state. `tick` advances every animation frame.
-    static func pose(for state: DroidState, tick: Int) -> Pose {
+    static func pose(for state: DroidState, tick: Int, drones: Int = 0) -> Pose {
+        var pose = basePose(for: state, tick: tick)
+        pose.drones = min(drones, maxDrones)
+        pose.droneFrame = tick
+        return pose
+    }
+
+    private static func basePose(for state: DroidState, tick: Int) -> Pose {
         let even = tick % 2 == 0
         switch state {
         case .sleeping:
@@ -326,10 +384,24 @@ extension Sprite {
         case .tinkering:
             return Pose(hat: .propeller, eyes: .normal, hatFrame: tick)
         case .compacting:
-            return Pose(hat: .antenna, eyes: .dizzy, eyeColor: .systemPurple, dx: even ? -1 : 1)
+            // Bonk: knocked down a pixel, then seeing stars for a while.
+            switch tick % 8 {
+            case 0: return Pose(hat: .antenna, eyes: .squint, prop: .bonk, eyeColor: .systemPurple, dy: 1)
+            case 1: return Pose(hat: .antenna, eyes: .squint, prop: .bonk, eyeColor: .systemPurple)
+            default: return Pose(hat: .antenna, eyes: .dizzy, prop: even ? .starsA : .starsB, eyeColor: .systemPurple)
+            }
+        case .forgetful:
+            return Pose(hat: .antenna, eyes: (tick / 2) % 2 == 0 ? .up : .left, prop: .question,
+                        eyeColor: .systemPurple)
+        case .oops:
+            return Pose(hat: .none, eyes: .shut, prop: even ? .facepalmA : .facepalmB, eyeColor: .systemBlue)
         case .needsYou:
             return Pose(hat: .antenna, eyes: .wide, prop: even ? .alert : .none,
                         eyeColor: .systemOrange, dy: even ? -1 : 0)
+        case .triumph:
+            var pose = Pose(hat: .party, eyes: .happy, eyeColor: .systemGreen, dy: even ? -1 : 0)
+            pose.confettiFall = tick
+            return pose
         case .done:
             return Pose(hat: .party, eyes: .happy, prop: even ? .sparklesA : .sparklesB,
                         eyeColor: .systemGreen, dy: tick % 4 == 0 ? -1 : 0)
